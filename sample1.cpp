@@ -28,26 +28,58 @@ int main(int argc, char *argv[])
         error("ERROR opening socket");
      bzero((char *) &serv_addr, sizeof(serv_addr));
      portno = atoi(argv[1]);
+
+     int pid = fork();
+     if( ! pid)
+     {
+       char cmd[100];
+       snprintf(cmd,100,"tcpdump -i lo port %d -s0 -w port-%d.cap", portno, portno);
+       system (cmd);
+       return 0;
+     }
+
      serv_addr.sin_family = AF_INET;
      serv_addr.sin_addr.s_addr = INADDR_ANY;
      serv_addr.sin_port = htons(portno);
      if (bind(sockfd, (struct sockaddr *) &serv_addr,
               sizeof(serv_addr)) < 0) 
               error("ERROR on binding");
-     listen(sockfd,5);
-     clilen = sizeof(cli_addr);
-     newsockfd = accept(sockfd, 
+     while (1)
+     {
+       printf ("Listen..\n");
+       listen(sockfd,5);
+       clilen = sizeof(cli_addr);
+       newsockfd = accept(sockfd, 
                  (struct sockaddr *) &cli_addr, 
                  &clilen);
-     if (newsockfd < 0) 
+       if (newsockfd < 0) 
           error("ERROR on accept");
-     bzero(buffer,256);
-     n = read(newsockfd,buffer,255);
-     if (n < 0) error("ERROR reading from socket");
-     printf("Here is the message: %s\n",buffer);
-     n = write(newsockfd,"I got your message",18);
-     if (n < 0) error("ERROR writing to socket");
-     close(newsockfd);
-     close(sockfd);
-     return 0; 
+       bzero(buffer,256);
+       do 
+       { 
+         n = read(newsockfd,buffer,255);
+         if (n < 0) printf("ERROR reading from socket");
+         if (n == 0)
+         {
+           printf ("buffer is empty!\n");
+           break;
+         }
+         else
+         {
+           printf("Here is the message: %s\n",buffer);
+           n = write(newsockfd,"I got your message",18);
+           if (n < 0)
+             error("ERROR writing to socket");
+         } 
+       }while(1);
+       //char cmd[100];
+       //snprintf(cmd,100,"kill %d", pid);
+      // system (cmd);
+
+//       return 0;
+
+}
+       close(newsockfd);
+       close(sockfd);
+    return 0;
 }
